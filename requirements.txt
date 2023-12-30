@@ -1,0 +1,5 @@
+fastapi
+uvicorn
+llama_index
+langchain
+pydantic
