@@ -3,16 +3,33 @@ import logging
 import time
 import json
 
-app = FastAPI()
+from fastapi.concurrency import asynccontextmanager
+import uvicorn
 
-@app.post("/conversation/chat")
-async def upload_file(file: UploadFile):
+from message.inbound_http_request import ChatRequest
+from message.outbound_http_response import ChatResponse
+from langchain.document_loaders.mongodb import MongodbLoader
 
+from services.llm_service import InternalLlmService
 
+app = FastAPI(title="FastApi - PrivateGpt")
 
+llm_service:InternalLlmService = any
 
-@app.post("/uploadfile")
-async def upload_file(file: UploadFile):
-    logging.info("Receive file : " + file.filename)
-    file_bytes = file.file.read()
-    return {"content": file.filename}
+@asynccontextmanager
+async def startup():
+    global counter
+    loader = MongodbLoader(
+        connection_string="mongodb://localhost:27017/",
+        db_name="sample_restaurants",
+        collection_name="restaurants",
+        filter_criteria={"borough": "Bronx", "cuisine": "Bakery"},
+    )
+    llm_service = InternalLlmService(mongo_loader=loader)
+
+@app.post("/conversation/chat", response_model=ChatResponse)
+async def conversation_chat(chat_request: ChatRequest):
+    return llm_service.chat(chat_request=chat_request)
+
+if __name__ == '__main__':
+    uvicorn.run(f'main:app', host='localhost', port=8000)
