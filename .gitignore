@@ -162,3 +162,4 @@ cython_debug/
 .vscode/launch.json
 path/to/data/raft_state.json
 path/to/data/aliases/data.json
+milvus/volumes
