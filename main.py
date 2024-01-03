@@ -18,23 +18,10 @@ app = FastAPI(title="FastApi - PrivateGpt")
 
 llm_service: InternalLlmService = any
 
-parser: configparser.ConfigParser = any
-
 @app.on_event("startup")
 async def startup():
     global llm_service
-    global parser
-    parser = configparser.ConfigParser()
-    parser.read("config.conf")
-    loader = MongodbLoader(
-        connection_string=parser["mongo"]["url"],
-        db_name=parser["mongo"]["database"],
-        collection_name=parser["mongo"]["collection"]
-    )
-    mongo_client = MongoClient(parser["mongo"]["url"])
-    llm_service = InternalLlmService(
-        mongo_loader=loader, mongo_client=mongo_client, model=parser["model"]["name"])
-
+    llm_service = InternalLlmService()
 
 @app.post("/llama-inddex/conversation/chat", response_model=ChatResponse)
 async def llama_conversation_chat(chat_request: ChatRequest):
