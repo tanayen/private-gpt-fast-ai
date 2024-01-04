@@ -12,7 +12,7 @@ from langchain.callbacks.manager import CallbackManager
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.embeddings import OllamaEmbeddings
 from pymongo import MongoClient
-from langchain_community.vectorstores.chroma import Chroma
+from langchain_community.vectorstores.elastic_vector_search import ElasticVectorSearch
 import json
 
 
@@ -46,27 +46,9 @@ class InternalLlmService:
     async def lc_chat(self, request: ChatRequest):
         # docs = await self._mongo_loader.aload()
 
-        docs = []
-        # Load data from mongo
-        for company in self._mongo_client.get_database("fenrir-invoice").get_collection("company_info_gen_ai").find({}).limit(300):
-            # Transform data
-            raw_info = json.loads(company["minvoice_data"])
-            object_content = {
-                "id": company["_id"],
-                "company_name": company["name"],
-                "company_address": company["address"],
-                "town": raw_info["dctshuyenten"],
-                "district": raw_info["dctsxaten"],
-            }
-            doc = Document(page_content=json.dumps(
-                object_content), metadata={"source": "mongo", "id" : company["_id"]})
-            docs.append(doc)
-
         # Embed & Store data
-        vectorstore: Chroma = Chroma.from_documents(docs, self._embeddings)
+        vectorstore: ElasticVectorSearch = ElasticVectorSearch(elasticsearch_url="http://cashgrow:uHzXk73jCCEdNMu@10.101.3.19:9200", index_name="company", embedding=self._embeddings)
         question_vector: List[float] = await self._embeddings.aembed_query(request.prompt)
-        docs = vectorstore.similarity_search_by_vector_with_relevance_scores(
-            question_vector)
-        result = self._langchain_llm(
-            {"question": request.prompt, "docs": docs})
-        return {"answer": result["text"]}
+        docs = vectorstore.similarity_search(question_vector)
+        print(docs)
+        return {"vector": question_vector}
