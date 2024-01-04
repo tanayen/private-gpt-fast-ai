@@ -55,7 +55,7 @@ collection = Collection(name=milvus_collection_name,
 # Create Index Collection
 # Document : https://milvus.io/docs/create_collection.md
 index_params = {
-    "metric_type": "L2",
+    "metric_type": "VECTOR",
     "index_type": "IVF_FLAT",
     "params": {"nlist": 1024}
 }
@@ -93,7 +93,7 @@ for company in mongo_client.get_database("fenrir-invoice").get_collection("compa
     data_company_id.append(id)
     data_company_name.append(company["name"])
     data_company_address.append(company["address"])
-    vector = embedding.embed_documents([id + "-" + company["name"]])[0]
+    vector = embedding.embed_documents([id + " " + company["name"]])[0]
     data_company_vector.append(vector)
     index = index+1
     if (index in [300, 600, 900, 1200, 1500, 1800, 2100, 2400]):

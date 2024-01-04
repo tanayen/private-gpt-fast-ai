@@ -57,5 +57,17 @@ class InternalLlmService:
             output_fields=["company_id", "company_name", "company_address"],
             consistency_level="Strong"
         )
-        print(results)
-        return question_vector
+        collection.release()
+        docs = []
+        for result in results[0] :
+            entity = result.entity
+            object_content = {
+                "id": entity.fields["company_id"],
+                "company_name": entity.fields["company_name"],
+                "company_address": entity.fields["company_address"],
+            }
+            doc = Document(page_content=json.dumps(object_content), metadata={"source": "mongo"})
+            docs.append(doc)
+        result = self._langchain_llm(
+            {"question": request.prompt, "docs": docs})
+        return {"answer": result["text"], "question_vector" : question_vector}
