@@ -25,7 +25,6 @@ class InternalLlmService:
     _embeddings: OllamaEmbeddings
     _mongo_client: MongoClient
     _parser: configparser.ConfigParser
-    _vectorstore: ElasticsearchStore
 
     def __init__(self, mongo_loader: MongodbLoader, parser: configparser.ConfigParser):
         self._mongo_loader = mongo_loader
@@ -37,34 +36,33 @@ class InternalLlmService:
                 HumanMessagePromptTemplate.from_template("{question}?"),
             ]
         )
-
         llm = Ollama(
             model=parser["model"]["name"],
             callback_manager=CallbackManager(
                 [StreamingStdOutCallbackHandler()])
         )
-
         self._langchain_llm = LLMChain(llm=llm, prompt=prompt)
         self._embeddings = OllamaEmbeddings(model=parser["model"]["name"])
-        self._vectorstore = ElasticsearchStore(
-            es_url=self._parser["es"]["url"],
-            index_name=self._parser["es"]["index_name"],
-            embedding=self._embeddings,
-            es_user=self._parser["es"]["user"],
-            es_password=self._parser["es"]["password"]
-        )
 
     def llama_chat(self, request: ChatRequest):
         return {}
 
     async def lc_chat(self, request: ChatRequest):
-        question_vector: List[float] = await self._embeddings.aembed_query(request.prompt)
+        # docs = await self._mongo_loader.aload()
 
-        docs = self._vectorstore.similarity_search(
-            query=request.prompt,
-            fields=["company_id", "company_name", "company_address"]
+        # Embed & Store data
+        vectorstore: ElasticsearchStore = ElasticsearchStore(
+            es_url="http://10.101.3.19:9200",
+            index_name="company",
+            embedding=self._embeddings,
+            es_user="cashgrow",
+            es_password="uHzXk73jCCEdNMu"
         )
-
+        # ElasticVectorSearch(elasticsearch_url="http://cashgrow:uHzXk73jCCEdNMu@10.101.3.19:9200", index_name="company", embedding=self._embeddings)
+        question_vector: List[float] = await self._embeddings.aembed_query(request.prompt)
+        docs = vectorstore.similarity_search(query=request.prompt, fields=[
+                                             "company_id", "company_name", "company_address"])
+        print(docs)
         result = self._langchain_llm(
             {"question": request.prompt, "docs": docs})
         return {"answer": result["text"], "question_vector": question_vector}
