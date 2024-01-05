@@ -13,6 +13,9 @@ from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.embeddings import OllamaEmbeddings
 from pymongo import MongoClient
 from langchain_community.vectorstores.elastic_vector_search import ElasticVectorSearch
+from langchain_community.vectorstores.elasticsearch import ElasticsearchStore
+from backports import configparser
+
 import json
 
 
@@ -21,9 +24,12 @@ class InternalLlmService:
     _langchain_llm: Ollama
     _embeddings: OllamaEmbeddings
     _mongo_client: MongoClient
+    _parser: configparser.ConfigParser
+    _vectorstore: ElasticsearchStore
 
-    def __init__(self, mongo_loader: MongodbLoader, mongo_client: MongoClient, model: str):
+    def __init__(self, mongo_loader: MongodbLoader, parser: configparser.ConfigParser):
         self._mongo_loader = mongo_loader
+        self._parser = parser
         prompt = ChatPromptTemplate(
             messages=[
                 SystemMessagePromptTemplate.from_template(
@@ -31,24 +37,34 @@ class InternalLlmService:
                 HumanMessagePromptTemplate.from_template("{question}?"),
             ]
         )
+
         llm = Ollama(
-            model=model,
+            model=parser["model"]["name"],
             callback_manager=CallbackManager(
                 [StreamingStdOutCallbackHandler()])
         )
+
         self._langchain_llm = LLMChain(llm=llm, prompt=prompt)
-        self._mongo_client = mongo_client
-        self._embeddings = OllamaEmbeddings(model=model)
+        self._embeddings = OllamaEmbeddings(model=parser["model"]["name"])
+        self._vectorstore = ElasticsearchStore(
+            es_url=self._parser["es"]["url"],
+            index_name=self._parser["es"]["index_name"],
+            embedding=self._embeddings,
+            es_user=self._parser["es"]["user"],
+            es_password=self._parser["es"]["password"]
+        )
 
     def llama_chat(self, request: ChatRequest):
         return {}
 
     async def lc_chat(self, request: ChatRequest):
-        # docs = await self._mongo_loader.aload()
-
-        # Embed & Store data
-        vectorstore: ElasticVectorSearch = ElasticVectorSearch(elasticsearch_url="http://cashgrow:uHzXk73jCCEdNMu@10.101.3.19:9200", index_name="company", embedding=self._embeddings)
         question_vector: List[float] = await self._embeddings.aembed_query(request.prompt)
-        docs = vectorstore.similarity_search(question_vector)
-        print(docs)
-        return {"vector": question_vector}
+
+        docs = self._vectorstore.similarity_search(
+            query=request.prompt,
+            fields=["company_id", "company_name", "company_address"]
+        )
+
+        result = self._langchain_llm(
+            {"question": request.prompt, "docs": docs})
+        return {"answer": result["text"], "question_vector": question_vector}

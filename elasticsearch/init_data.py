@@ -23,7 +23,8 @@ for company in mongo_client.get_database("fenrir-invoice").get_collection("compa
         'company_id': id,
         'company_name': company["name"],
         'company_address': company["address"],
-        'my_vector': embedding.embed_documents([id + " " + company["name"]])[0]
+        'vector': embedding.embed_documents([id + " " + company["name"]])[0]
+        
     })
     index = index + 1
 #     doc = 

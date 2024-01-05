@@ -31,9 +31,9 @@ async def startup():
         db_name=parser["mongo"]["database"],
         collection_name=parser["mongo"]["collection"]
     )
-    mongo_client = MongoClient(parser["mongo"]["url"])
-    llm_service = InternalLlmService(
-        mongo_loader=loader, mongo_client=mongo_client, model=parser["model"]["name"])
+    llm_service = InternalLlmService(mongo_loader=loader, parser=parser)
+    # llm_service = InternalLlmService(
+    #     mongo_loader=loader, mongo_client=mongo_client, model=parser["model"]["name"])
 
 
 @app.post("/llama-inddex/conversation/chat", response_model=ChatResponse)
@@ -46,4 +46,4 @@ async def lc_conversation_chat(chat_request: ChatRequest):
     return await llm_service.lc_chat(request=chat_request)
 
 if __name__ == '__main__':
-    uvicorn.run(f'main:app', host='localhost', port=8000)
+    uvicorn.run(f'main:app', host='localhost', port=8000, debug=True)
