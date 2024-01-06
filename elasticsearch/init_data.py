@@ -22,7 +22,7 @@ if (model_type not in [1, 2]):
     sys.exit()
 
 embedding = any
-index_name = "company_ollama"
+index_name = "company"
 openai_key = ""
 dims = 4096
 if (model_type == 1):
