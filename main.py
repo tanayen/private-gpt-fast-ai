@@ -16,6 +16,7 @@ from services.llm_service import InternalLlmService
 
 app = FastAPI(title="FastApi - PrivateGpt")
 
+
 llm_service: InternalLlmService = any
 
 parser: configparser.ConfigParser = any
